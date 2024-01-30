@@ -1,7 +1,7 @@
 import * as otplib from 'otplib';
 
 export class ApiClient {
-    public static readonly CLIENT_VERSION = '3.0.2';
+    public static readonly CLIENT_VERSION = '3.1.0';
 
     public static readonly API_URL_LIVE = 'https://api.domrobot.com/jsonrpc/';
     public static readonly API_URL_OTE = 'https://api.ote.domrobot.com/jsonrpc/';
@@ -11,7 +11,7 @@ export class ApiClient {
     }
 
     private readonly apiUrl: string;
-    private language: string;
+    private language: Language;
     private debugMode: boolean;
 
     private cookie: string;
@@ -21,7 +21,7 @@ export class ApiClient {
      * @param language default language for future API requests.
      * @param debugMode whether requests and responses should be printed out.
      */
-    constructor(apiUrl: string = ApiClient.API_URL_OTE, language: string = Language.EN, debugMode: boolean = false) {
+    constructor(apiUrl: string = ApiClient.API_URL_OTE, language = Language.EN, debugMode: boolean = false) {
         this.apiUrl = apiUrl;
         this.language = language;
         this.debugMode = debugMode;
@@ -39,8 +39,8 @@ export class ApiClient {
     public async callApi(
         apiMethod: string,
         methodParams: any = {},
+        language: Language = this.language,
         clientTransactionId: string = ApiClient.generateClientTransactionId(),
-        language: string = this.language,
     ): Promise<any> {
         if ('clTRID'! in methodParams && clientTransactionId !== null) {
             methodParams.clTRID = clientTransactionId;
@@ -68,10 +68,10 @@ export class ApiClient {
             this.cookie = response.headers.get('set-cookie');
         }
 
-        const data = await response.json()
+        const data = await response.json();
         if (this.debugMode) {
             console.info(`Request (${apiMethod}): ${requestBody}`);
-            console.info(`Response (${apiMethod}): ${data}`);
+            console.info(`Response (${apiMethod}): ${JSON.stringify(data, null, 2)}`);
         }
 
         return data;
@@ -85,7 +85,10 @@ export class ApiClient {
      * @param sharedSecret
      */
     public async login(username: string, password: string, sharedSecret: string = null): Promise<any> {
-        const loginResult = await this.callApi('account.login', { user: username, pass: password });
+        const loginResult = await this.callApi('account.login', {
+            user: username,
+            pass: password,
+        });
         if (loginResult.code === 1000 && 'tfa' in loginResult.resData && loginResult.resData.tfa !== '0') {
             if (sharedSecret === null) {
                 return Promise.reject('API requests two factor challenge but no shared secret is given. Aborting.');
@@ -115,8 +118,8 @@ export class ApiClient {
         return this.language;
     }
 
-    public setLanguage(value: string) {
-        this.language = value;
+    public setLanguage(lang: Language) {
+        this.language = lang;
     }
 
     public isDebugMode(): boolean {
